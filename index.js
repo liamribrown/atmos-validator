@@ -29,8 +29,6 @@ async function setCachedStatus(id, hasAtmos) {
 
 async function verifyAtmos(streamUrl) {
     const cmd = `ffprobe -v quiet -print_format json -show_streams -select_streams a -probesize 20000000 "${streamUrl}"`;
-async function verifyAtmos(streamUrl) {
-    const cmd = `ffprobe -v quiet -print_format json -show_streams -select_streams a -probesize 20000000 "${streamUrl}"`;
     try {
         const { stdout } = await execPromise(cmd);
         const metadata = JSON.parse(stdout);
@@ -52,7 +50,6 @@ async function verifyAtmos(streamUrl) {
     }
 }
 
-
 // Pulls securely from Render's environment variables
 const SOOTIO_BASE_URL = process.env.SOOTIO_BASE_URL;
 
@@ -61,7 +58,7 @@ const builder = new addonBuilder({
     version: '1.3.0',
     name: 'Atmos Validator',
     description: 'Filters Sootio streams to guarantee Dolby Atmos tracks.',
-    logo: 'https://raw.githubusercontent.com/liamribrown/atmos-validator/refs/heads/main/1779608583417.png', // Replace with your image URL
+    logo: 'https://raw.githubusercontent.com/liamribrown/atmos-validator/refs/heads/main/1779608583417.png',
     resources: ['stream'],
     types: ['movie', 'series'],
     catalogs: []
@@ -79,25 +76,24 @@ builder.defineStreamHandler(async (args) => {
 
         const topStreams = remuxStreams.slice(0, 5);
         const validationPromises = topStreams.map(async (stream) => {
-    if (!stream.url) return null;
-    
-    const cacheId = stream.infoHash || stream.title;
-    let hasAtmos = await getCachedStatus(cacheId);
+            if (!stream.url) return null;
+            
+            const cacheId = stream.infoHash || stream.title;
+            let hasAtmos = await getCachedStatus(cacheId);
 
-    if (hasAtmos === null) {
-        hasAtmos = await verifyAtmos(stream.url);
-        await setCachedStatus(cacheId, hasAtmos);
-    }
+            if (hasAtmos === null) {
+                hasAtmos = await verifyAtmos(stream.url);
+                await setCachedStatus(cacheId, hasAtmos);
+            }
 
-    if (hasAtmos) {
-        // --- UPDATED UI FORMATTING ---
-        stream.name = `🌌 ATMOS\n[Sootio]`;
-        stream.title = `🔊 DEBRID | DOLBY ATMOS (TrueHD) ✅\n${stream.title}`;
-        return stream;
-    }
-    return null;
-});
-
+            if (hasAtmos) {
+                // --- UPDATED UI FORMATTING ---
+                stream.name = `🌌 ATMOS\n[Sootio]`;
+                stream.title = `🔊 DEBRID | DOLBY ATMOS (TrueHD) ✅\n${stream.title}`;
+                return stream;
+            }
+            return null;
+        });
 
         const results = await Promise.all(validationPromises);
         return { streams: results.filter(s => s !== null) };
