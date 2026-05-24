@@ -79,22 +79,25 @@ builder.defineStreamHandler(async (args) => {
 
         const topStreams = remuxStreams.slice(0, 5);
         const validationPromises = topStreams.map(async (stream) => {
-            if (!stream.url) return null;
-            
-            const cacheId = stream.infoHash || stream.title;
-            let hasAtmos = await getCachedStatus(cacheId);
+    if (!stream.url) return null;
+    
+    const cacheId = stream.infoHash || stream.title;
+    let hasAtmos = await getCachedStatus(cacheId);
 
-            if (hasAtmos === null) {
-                hasAtmos = await verifyAtmos(stream.url);
-                await setCachedStatus(cacheId, hasAtmos);
-            }
+    if (hasAtmos === null) {
+        hasAtmos = await verifyAtmos(stream.url);
+        await setCachedStatus(cacheId, hasAtmos);
+    }
 
-            if (hasAtmos) {
-                stream.name = `[Atmos Verified]\n${stream.name}`;
-                return stream;
-            }
-            return null;
-        });
+    if (hasAtmos) {
+        // --- UPDATED UI FORMATTING ---
+        stream.name = `🌌 ATMOS\n[Sootio]`;
+        stream.title = `🔊 DEBRID | DOLBY ATMOS (TrueHD) ✅\n${stream.title}`;
+        return stream;
+    }
+    return null;
+});
+
 
         const results = await Promise.all(validationPromises);
         return { streams: results.filter(s => s !== null) };
