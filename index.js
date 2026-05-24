@@ -53,7 +53,7 @@ const SOOTIO_BASE_URL = process.env.SOOTIO_BASE_URL;
 
 const builder = new addonBuilder({
     id: 'org.atmos.validator',
-    version: '1.4.0',
+    version: '1.5.0',
     name: 'Atmos Validator',
     description: 'Filters Sootio streams to guarantee Dolby Atmos tracks.',
     logo: 'https://raw.githubusercontent.com/liamribrown/atmos-validator/refs/heads/main/1779608583417.png',
@@ -72,7 +72,6 @@ builder.defineStreamHandler(async (args) => {
             (stream.name || '').toLowerCase().includes('remux')
         );
 
-        // Reduced from 5 to 3 to mitigate connection timeouts
         const topStreams = remuxStreams.slice(0, 3);
         const validationPromises = topStreams.map(async (stream) => {
             if (!stream.url) return null;
@@ -81,7 +80,8 @@ builder.defineStreamHandler(async (args) => {
             let hasAtmos = await getCachedStatus(cacheId);
 
             if (hasAtmos === null) {
-                hasAtmos = await verifyAtmos(stream.url);
+                // Passes stream.title to verify external metadata tags
+                hasAtmos = await verifyAtmos(stream.url, stream.title);
                 await setCachedStatus(cacheId, hasAtmos);
             }
 
@@ -96,7 +96,6 @@ builder.defineStreamHandler(async (args) => {
         const results = await Promise.all(validationPromises);
         const validStreams = results.filter(s => s !== null);
 
-        // Fallback UI if zero streams pass the validation check
         if (validStreams.length === 0) {
             return {
                 streams: [{
@@ -121,3 +120,4 @@ builder.defineStreamHandler(async (args) => {
 
 const PORT = process.env.PORT || 7000;
 serveHTTP(builder.getInterface(), { port: PORT });
+        
