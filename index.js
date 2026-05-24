@@ -27,7 +27,7 @@ async function setCachedStatus(id, hasAtmos) {
     await dbRun('INSERT OR REPLACE INTO atmos_streams (id, has_atmos) VALUES (?, ?)', [id, hasAtmos ? 1 : 0]);
 }
 
-async function verifyAtmos(streamUrl) {
+async function verifyAtmos(streamUrl, releaseName) {
     const cmd = `ffprobe -v quiet -print_format json -show_streams -select_streams a -probesize 20000000 "${streamUrl}"`;
     try {
         const { stdout } = await execPromise(cmd);
@@ -36,14 +36,13 @@ async function verifyAtmos(streamUrl) {
         
         return metadata.streams.some(stream => {
             const codec = stream.codec_name;
-            const title = stream.tags?.title?.toLowerCase() || '';
-            const profile = stream.profile?.toLowerCase() || '';
-            const codecLongName = stream.codec_long_name?.toLowerCase() || '';
+            const internalTitle = stream.tags?.title?.toLowerCase() || '';
+            
+            const hasInternalTag = internalTitle.includes('atmos');
+            const hasExternalTag = (releaseName || '').toLowerCase().includes('atmos');
 
-            const hasAtmosTag = title.includes('atmos');
-            const hasAtmosProfile = profile.includes('atmos') || codecLongName.includes('atmos');
-
-            return codec === 'truehd' && (hasAtmosTag || hasAtmosProfile);
+            // Validates TrueHD codec AND explicit Atmos metadata (internal or external)
+            return codec === 'truehd' && (hasInternalTag || hasExternalTag);
         });
     } catch (error) {
         return false;
