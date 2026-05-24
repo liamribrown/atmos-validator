@@ -29,6 +29,8 @@ async function setCachedStatus(id, hasAtmos) {
 
 async function verifyAtmos(streamUrl) {
     const cmd = `ffprobe -v quiet -print_format json -show_streams -select_streams a -probesize 20000000 "${streamUrl}"`;
+async function verifyAtmos(streamUrl) {
+    const cmd = `ffprobe -v quiet -print_format json -show_streams -select_streams a -probesize 20000000 "${streamUrl}"`;
     try {
         const { stdout } = await execPromise(cmd);
         const metadata = JSON.parse(stdout);
@@ -36,21 +38,27 @@ async function verifyAtmos(streamUrl) {
         
         return metadata.streams.some(stream => {
             const codec = stream.codec_name;
-            const channels = stream.channels;
             const title = stream.tags?.title?.toLowerCase() || '';
-            return title.includes('atmos') || (codec === 'truehd' && channels >= 8);
+            const profile = stream.profile?.toLowerCase() || '';
+            const codecLongName = stream.codec_long_name?.toLowerCase() || '';
+
+            const hasAtmosTag = title.includes('atmos');
+            const hasAtmosProfile = profile.includes('atmos') || codecLongName.includes('atmos');
+
+            return codec === 'truehd' && (hasAtmosTag || hasAtmosProfile);
         });
     } catch (error) {
         return false;
     }
 }
 
+
 // Pulls securely from Render's environment variables
 const SOOTIO_BASE_URL = process.env.SOOTIO_BASE_URL;
 
 const builder = new addonBuilder({
     id: 'org.atmos.validator',
-    version: '1.2.0',
+    version: '1.3.0',
     name: 'Atmos Validator',
     description: 'Filters Sootio streams to guarantee Dolby Atmos tracks.',
     logo: 'https://raw.githubusercontent.com/liamribrown/atmos-validator/refs/heads/main/1779608583417.png', // Replace with your image URL
