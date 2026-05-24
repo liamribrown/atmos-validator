@@ -37,12 +37,17 @@ async function verifyAtmos(streamUrl, releaseName) {
         return metadata.streams.some(stream => {
             const codec = stream.codec_name;
             const internalTitle = stream.tags?.title?.toLowerCase() || '';
+            const profile = stream.profile?.toLowerCase() || '';
+            const codecLongName = stream.codec_long_name?.toLowerCase() || '';
             
             const hasInternalTag = internalTitle.includes('atmos');
             const hasExternalTag = (releaseName || '').toLowerCase().includes('atmos');
+            const hasProfileTag = profile.includes('atmos') || codecLongName.includes('atmos');
 
-            // Validates TrueHD codec AND explicit Atmos metadata (internal or external)
-            return codec === 'truehd' && (hasInternalTag || hasExternalTag);
+            const isAtmosTagged = hasInternalTag || hasExternalTag || hasProfileTag;
+            
+            // Allow both TrueHD (Remux) and E-AC-3 (WEB-DL) Atmos
+            return (codec === 'truehd' || codec === 'eac3') && isAtmosTagged;
         });
     } catch (error) {
         return false;
@@ -53,7 +58,7 @@ const SOOTIO_BASE_URL = process.env.SOOTIO_BASE_URL;
 
 const builder = new addonBuilder({
     id: 'org.atmos.validator',
-    version: '1.5.0',
+    version: '1.6.0',
     name: 'Atmos Validator',
     description: 'Filters Sootio streams to guarantee Dolby Atmos tracks.',
     logo: 'https://raw.githubusercontent.com/liamribrown/atmos-validator/refs/heads/main/1779608583417.png',
@@ -67,12 +72,10 @@ builder.defineStreamHandler(async (args) => {
         const response = await axios.get(`${SOOTIO_BASE_URL}/stream/${args.type}/${args.id}.json`);
         const rawStreams = response.data.streams || [];
         
-        const remuxStreams = rawStreams.filter(stream => 
-            (stream.title || '').toLowerCase().includes('remux') || 
-            (stream.name || '').toLowerCase().includes('remux')
-        );
+        [span_2](start_span)// Removed the strict 'remux' pre-filter. 
+        // Sootio natively prioritizes top quality streams (Remux > BluRay > WEB-DL)[span_2](end_span).
+        const topStreams = rawStreams.slice(0, 3);
 
-        const topStreams = remuxStreams.slice(0, 3);
         const validationPromises = topStreams.map(async (stream) => {
             if (!stream.url) return null;
             
@@ -80,14 +83,13 @@ builder.defineStreamHandler(async (args) => {
             let hasAtmos = await getCachedStatus(cacheId);
 
             if (hasAtmos === null) {
-                // Passes stream.title to verify external metadata tags
                 hasAtmos = await verifyAtmos(stream.url, stream.title);
                 await setCachedStatus(cacheId, hasAtmos);
             }
 
             if (hasAtmos) {
                 stream.name = `🌌 ATMOS\n[Sootio]`;
-                stream.title = `🔊 DEBRID | DOLBY ATMOS (TrueHD) ✅\n${stream.title}`;
+                stream.title = `🔊 DEBRID | DOLBY ATMOS ✅\n${stream.title}`;
                 return stream;
             }
             return null;
@@ -120,4 +122,3 @@ builder.defineStreamHandler(async (args) => {
 
 const PORT = process.env.PORT || 7000;
 serveHTTP(builder.getInterface(), { port: PORT });
-        
