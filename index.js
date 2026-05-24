@@ -50,12 +50,11 @@ async function verifyAtmos(streamUrl) {
     }
 }
 
-// Pulls securely from Render's environment variables
 const SOOTIO_BASE_URL = process.env.SOOTIO_BASE_URL;
 
 const builder = new addonBuilder({
     id: 'org.atmos.validator',
-    version: '1.3.0',
+    version: '1.4.0',
     name: 'Atmos Validator',
     description: 'Filters Sootio streams to guarantee Dolby Atmos tracks.',
     logo: 'https://raw.githubusercontent.com/liamribrown/atmos-validator/refs/heads/main/1779608583417.png',
@@ -74,7 +73,8 @@ builder.defineStreamHandler(async (args) => {
             (stream.name || '').toLowerCase().includes('remux')
         );
 
-        const topStreams = remuxStreams.slice(0, 5);
+        // Reduced from 5 to 3 to mitigate connection timeouts
+        const topStreams = remuxStreams.slice(0, 3);
         const validationPromises = topStreams.map(async (stream) => {
             if (!stream.url) return null;
             
@@ -87,7 +87,6 @@ builder.defineStreamHandler(async (args) => {
             }
 
             if (hasAtmos) {
-                // --- UPDATED UI FORMATTING ---
                 stream.name = `🌌 ATMOS\n[Sootio]`;
                 stream.title = `🔊 DEBRID | DOLBY ATMOS (TrueHD) ✅\n${stream.title}`;
                 return stream;
@@ -96,9 +95,28 @@ builder.defineStreamHandler(async (args) => {
         });
 
         const results = await Promise.all(validationPromises);
-        return { streams: results.filter(s => s !== null) };
+        const validStreams = results.filter(s => s !== null);
+
+        // Fallback UI if zero streams pass the validation check
+        if (validStreams.length === 0) {
+            return {
+                streams: [{
+                    name: '⚠️ NOTICE',
+                    title: 'No Dolby Atmos metadata verified for this title.\nUse original Sootio instance for standard tracks.',
+                    externalUrl: 'https://stremio.com' 
+                }]
+            };
+        }
+
+        return { streams: validStreams };
     } catch (error) {
-        return { streams: [] };
+        return { 
+            streams: [{
+                name: '❌ ERROR',
+                title: 'Failed to fetch or validate streams from upstream.',
+                externalUrl: 'https://stremio.com'
+            }] 
+        };
     }
 });
 
