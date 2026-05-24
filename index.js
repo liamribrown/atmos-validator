@@ -50,9 +50,10 @@ const SOOTIO_BASE_URL = process.env.SOOTIO_BASE_URL;
 
 const builder = new addonBuilder({
     id: 'org.atmos.validator',
-    version: '1.1.0',
+    version: '1.2.0',
     name: 'Atmos Validator',
     description: 'Filters Sootio streams to guarantee Dolby Atmos tracks.',
+    logo: 'https://raw.githubusercontent.com/liamribrown/atmos-validator/refs/heads/main/1779608583417.png', // Replace with your image URL
     resources: ['stream'],
     types: ['movie', 'series'],
     catalogs: []
