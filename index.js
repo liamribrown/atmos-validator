@@ -69,11 +69,19 @@ const builder = new addonBuilder({
 
 builder.defineStreamHandler(async (args) => {
     try {
-        const response = await axios.get(`${SOOTIO_BASE_URL}/stream/${args.type}/${args.id}.json`);
-        const rawStreams = response.data.streams || [];
+        // 1. Strip any accidental trailing slashes from the environment variable
+        const baseUrl = SOOTIO_BASE_URL.replace(/\/$/, '');
         
-        [span_2](start_span)// Removed the strict 'remux' pre-filter. 
-        // Sootio natively prioritizes top quality streams (Remux > BluRay > WEB-DL)[span_2](end_span).
+        // 2. Spoof a standard browser User-Agent to bypass Cloudflare bot protection
+        const targetUrl = `${baseUrl}/stream/${args.type}/${args.id}.json`;
+        const response = await axios.get(targetUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 8000 // Prevent hanging connections
+        });
+
+        const rawStreams = response.data.streams || [];
         const topStreams = rawStreams.slice(0, 3);
 
         const validationPromises = topStreams.map(async (stream) => {
@@ -110,6 +118,9 @@ builder.defineStreamHandler(async (args) => {
 
         return { streams: validStreams };
     } catch (error) {
+        // 3. Log the specific failure reason to your Render dashboard
+        console.error("Upstream Fetch Error:", error.message);
+        
         return { 
             streams: [{
                 name: '❌ ERROR',
@@ -119,6 +130,7 @@ builder.defineStreamHandler(async (args) => {
         };
     }
 });
+
 
 const PORT = process.env.PORT || 7000;
 serveHTTP(builder.getInterface(), { port: PORT });
